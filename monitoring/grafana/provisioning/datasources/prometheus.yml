@@ -1,0 +1,12 @@
+apiVersion: 1
+
+datasources:
+  - name: SAT-GUARD Prometheus
+    uid: satguard-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: false
+    editable: true
+    jsonData:
+      timeInterval: 5s

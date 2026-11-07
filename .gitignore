@@ -8,5 +8,5 @@ data/raw/
 data/processed/
 reports/
 *.joblib
-
+backups/
 .env

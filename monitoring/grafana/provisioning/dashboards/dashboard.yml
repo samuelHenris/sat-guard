@@ -1,0 +1,12 @@
+
+apiVersion: 1
+
+providers:
+  - name: SAT-GUARD
+    orgId: 1
+    folder: SAT-GUARD
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /etc/grafana/dashboards
