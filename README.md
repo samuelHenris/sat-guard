@@ -1,655 +1,162 @@
 # SAT-GUARD
+### Intelligent Spacecraft Telemetry Monitoring & Anomaly Detection
 
-### Intelligent Spacecraft Telemetry Monitoring and Anomaly Detection Platform
+**Python • Machine Learning • FastAPI • Prometheus • Grafana • Docker**
 
-**Python | Machine Learning | FastAPI | Prometheus | Grafana | Docker**
+SAT-GUARD is an end-to-end spacecraft telemetry anomaly detection and monitoring prototype built using real historical telemetry from the European Space Agency's OPS-SAT mission.
 
-SAT-GUARD is an end-to-end spacecraft telemetry anomaly detection and monitoring platform developed using real historical satellite telemetry from the European Space Agency's (ESA) OPS-SAT mission.
+The system processes spacecraft magnetometer measurements, extracts statistical and temporal features, and uses a Random Forest classifier to identify anomalous telemetry segments.
 
-The project integrates signal processing, statistical feature engineering, machine learning, REST API development, and system observability to identify anomalous spacecraft sensor behavior and monitor detection-system performance.
+A FastAPI backend serves predictions, while Prometheus and Grafana provide monitoring of anomaly detections, prediction throughput, and processing latency.
 
-SAT-GUARD uses a Random Forest classifier trained on statistical and temporal features extracted from spacecraft magnetometer measurements. The trained model is integrated into a FastAPI backend that processes completed telemetry segments and returns anomaly predictions.
+The project combines **communications engineering, data science, software engineering, and observability** in a space-systems application.
 
-Prometheus collects application metrics, while Grafana provides dashboards for monitoring predictions, anomaly detections, processing throughput, and inference latency.
-
-The application is containerized using Docker and deployed locally through Docker Compose.
-
-> **Project scope:** SAT-GUARD is a ground-based engineering and research prototype using historical spacecraft telemetry. It does not communicate with operational satellites or provide flight-qualified anomaly detection.
-
----
-
-## 1. Problem Statement
-
-Spacecraft rely on telemetry measurements to monitor onboard systems, sensor behavior, and operational conditions.
-
-However, spacecraft telemetry can contain abnormal patterns, measurement noise, missing observations, and unexpected variations.
-
-Identifying these anomalies can be challenging, particularly when differences between normal and abnormal operating conditions are subtle.
-
-Traditional threshold-based monitoring approaches may struggle to distinguish genuine anomalies from normal signal variations, potentially generating false alarms or missing unusual behavior.
-
-Machine learning provides an alternative approach by learning relationships between multiple statistical and temporal characteristics of sensor measurements.
-
-SAT-GUARD investigates how lightweight machine learning models can support spacecraft telemetry anomaly detection while remaining integrated with backend services and monitoring infrastructure.
-
----
-
-## 2. Project Objectives
-
-The primary objective of SAT-GUARD is to develop and evaluate an end-to-end spacecraft telemetry anomaly detection and monitoring prototype.
-
-The project aims to:
-
-1. Process and validate real historical spacecraft telemetry from ESA OPS-SAT.
-2. Extract statistical and temporal features from spacecraft sensor measurements.
-3. Train and evaluate machine learning models for segment-level anomaly classification.
-4. Expose anomaly predictions through a REST API developed with FastAPI.
-5. Implement historical telemetry replay to demonstrate automated inference.
-6. Monitor predictions, anomaly detections, and application performance using Prometheus and Grafana.
-7. Package the application using Docker Compose.
-8. Validate the implementation using automated software tests.
-
----
-
-## 3. System Architecture
-
-SAT-GUARD follows a modular architecture that separates telemetry processing, machine learning, API development, and observability.
+## 1. System Architecture
 
 ```mermaid
 flowchart TD
-    A["ESA OPS-SAT Dataset"] --> B["Data Validation"]
-    B --> C["Feature Extraction"]
-    C --> D["Random Forest Model"]
-    D --> E["FastAPI Inference Service"]
-    E --> F["Prometheus Metrics"]
-    F --> G["Grafana Dashboard"]
+    A["ESA OPS-SAT Telemetry"] --> B["Data Validation & Feature Extraction"]
+    B --> C["Random Forest Classifier"]
+    C --> D["FastAPI REST API"]
+    D --> E["Prometheus Metrics"]
+    E --> F["Grafana Dashboard"]
 ```
 
-### Architecture Components
+**Technology stack:** Python, Pandas, NumPy, SciPy, scikit-learn, FastAPI, Pydantic, pytest, Prometheus, Grafana, Docker Compose.
 
-| Component | Technology | Responsibility |
-|---|---|---|
-| Telemetry ingestion | Python, Pandas | Load spacecraft telemetry |
-| Data validation | Pandas, NumPy | Validate measurements, timestamps, and labels |
-| Feature extraction | NumPy, SciPy | Calculate statistical and temporal features |
-| Anomaly detection | scikit-learn | Classify telemetry segments |
-| Model persistence | Joblib | Save and load the trained classifier |
-| Backend API | FastAPI, Pydantic | Serve predictions and model information |
-| Telemetry replay | Python, HTTPX | Replay historical telemetry segments |
-| Metrics collection | Prometheus | Collect application performance metrics |
-| Visualization | Grafana | Display monitoring dashboards |
-| Containerization | Docker | Package the application |
-| Orchestration | Docker Compose | Run the local application stack |
-| Testing | pytest | Validate application functionality |
+The application processes completed telemetry segments rather than individual measurements in real time.
 
-### Data Processing Flow
+## 2. Dataset & Machine Learning
 
-1. Historical telemetry measurements are loaded from the ESA OPS-SAT dataset.
-2. The data is validated for missing values, timestamp consistency, and segment integrity.
-3. Measurements are grouped into telemetry segments.
-4. Statistical and temporal features are extracted from each completed segment.
-5. The trained Random Forest classifies the segment as normal or anomalous.
-6. FastAPI returns the classification and anomaly score.
-7. Prometheus collects prediction and processing metrics.
-8. Grafana visualizes the application's operational behavior.
+SAT-GUARD uses the publicly available [ESA OPS-SAT dataset](https://zenodo.org/records/15108715).
 
----
-
-## 4. Dataset
-
-### ESA OPS-SAT Telemetry
-
-The project uses publicly available historical telemetry from ESA's OPS-SAT mission.
-
-Dataset characteristics:
-
-| Property | Value |
-|---|---|
-| Total measurements | 303,493 |
-| Telemetry segments | 2,123 |
+| Dataset Property | Value |
+|---|---:|
+| Telemetry measurements | 303,493 |
+| Segments | 2,123 |
 | Telemetry channels | 9 |
-| Normal segments | 1,689 |
-| Anomalous segments | 434 |
-| Data type | Time-series spacecraft sensor measurements |
+| Initial model channel | CADC0872 (Magnetometer) |
+| Training segments | 414 |
+| Testing segments | 132 |
 
-Each telemetry record contains:
+The Random Forest uses **14 statistical and temporal features**, including mean, standard deviation, skewness, kurtosis, measurement differences, and peak-change characteristics.
 
-- `channel` — telemetry channel identifier
-- `timestamp` — measurement timestamp
-- `value` — sensor measurement
-- `label` — dataset annotation metadata
-- `sampling` — nominal sampling interval
-- `anomaly` — binary anomaly label
-- `segment` — telemetry segment identifier
-- `train` — official training/testing partition indicator
-
-### Initial Telemetry Channel
-
-The initial anomaly detection model focuses on:
-
-**CADC0872 — Magnetometer telemetry**
-
-This channel contains:
-
-- 546 telemetry segments
-- 414 training segments
-- 132 testing segments
-- 131 labeled anomalous segments
-
-The original dataset's training and testing partitions are preserved.
-
-### Segment-Level Classification
-
-A telemetry segment contains multiple consecutive measurements from the same sensor channel.
-
-SAT-GUARD extracts features from the completed segment and predicts whether that segment is normal or anomalous.
-
-Therefore:
-
-**One completed segment represents one classification example.**
-
-The current implementation does not perform instantaneous anomaly detection on individual incoming measurements.
-
----
-
-## 5. Feature Engineering
-
-SAT-GUARD extracts 14 numerical features from completed telemetry segments.
-
-These features describe the distribution and temporal behavior of the sensor measurements.
-
-### Statistical Features
-
-| Feature | Description |
-|---|---|
-| Mean | Average sensor measurement |
-| Standard deviation | Measurement variability |
-| Minimum | Lowest recorded value |
-| Maximum | Highest recorded value |
-| Median | Central measurement value |
-| Interquartile range | Spread between the 25th and 75th percentiles |
-| Skewness | Asymmetry of the measurement distribution |
-| Kurtosis | Characteristics of the distribution's tails |
-
-### Temporal and Segment Features
-
-| Feature | Description |
-|---|---|
-| Mean absolute difference | Average magnitude of consecutive measurement changes |
-| Maximum absolute difference | Largest change between consecutive measurements |
-| 95th-percentile absolute difference | Upper percentile of measurement changes |
-| Difference standard deviation | Variability of consecutive measurement differences |
-| Gap count | Number of detected sampling discontinuities |
-| Segment length | Number of measurements in the segment |
-
-Timestamp discontinuities are considered during temporal feature extraction.
-
-Measurement differences across detected gaps are excluded from the consecutive-difference calculations.
-
-The extracted features provide a fixed-length representation of variable-length telemetry segments.
-
----
-
-## 6. Machine Learning Model
-
-SAT-GUARD uses a Random Forest classifier implemented with scikit-learn.
-
-### Model Configuration
-
-| Parameter | Value |
-|---|---|
-| Algorithm | Random Forest |
-| Number of estimators | 200 |
-| Maximum depth | 8 |
-| Minimum samples per leaf | 3 |
-| Class weighting | Balanced |
-| Random state | 42 |
-| Input features | 14 |
-| Model version | 0.1.0 |
-
-The model is trained using the official training partition of the ESA OPS-SAT dataset.
-
-The trained classifier is serialized using Joblib and loaded by the FastAPI application during startup.
-
-The saved model artifact includes:
-
-- Trained Random Forest classifier
-- Expected feature names and ordering
-- Supported telemetry channel
-- Model version
-
-This allows the API to perform inference without retraining the model for each request.
-
----
-
-## 7. Model Evaluation
-
-The enhanced Random Forest was evaluated on the official held-out test partition for telemetry channel CADC0872.
-
-### Evaluation Dataset
-
-| Partition | Normal | Anomalous | Total |
-|---|---:|---:|---:|
-| Training | 315 | 99 | 414 |
-| Testing | 100 | 32 | 132 |
+**Model configuration:** 200 trees, maximum depth 8, balanced class weights, random state 42.
 
 ### Evaluation Results
 
+The enhanced Random Forest achieved the following results on the official held-out partition for CADC0872:
+
 | Metric | Result |
 |---|---:|
-| Precision | **93.75%** |
-| Recall | **93.75%** |
-| F1-score | **0.9375** |
-| Accuracy | **96.97%** |
-| False-positive rate | **2.00%** |
+| **Precision** | **93.75%** |
+| **Recall** | **93.75%** |
+| **F1-score** | **0.9375** |
+| Accuracy | 96.97% |
+| False-positive rate | 2.00% |
 
-### Confusion Matrix
+**Confusion matrix:** TP = 30, TN = 98, FP = 2, FN = 2.
 
-| Actual / Predicted | Normal | Anomalous |
-|---|---:|---:|
-| Normal | 98 | 2 |
-| Anomalous | 2 | 30 |
+These results apply to the selected telemetry channel and test partition. Earlier model-development experiments informed feature selection, so this was not a completely untouched external benchmark.
 
-The classifier correctly identified 30 of the 32 anomalous test segments while incorrectly classifying two normal segments as anomalous.
+## 3. API & Monitoring
 
-These results demonstrate promising performance for the selected OPS-SAT telemetry channel.
+SAT-GUARD provides the following FastAPI endpoints:
 
-The official test partition was excluded from model fitting. However, earlier experiments informed subsequent feature development, so the final held-out evaluation should not be interpreted as a completely untouched external benchmark.
+| Endpoint | Function |
+|---|---|
+| `GET /health` | Application health |
+| `GET /api/v1/model/info` | Model metadata |
+| `POST /api/v1/predict` | Telemetry anomaly classification |
+| `GET /metrics` | Prometheus metrics |
 
-The results do not establish generalization to other telemetry channels, spacecraft, or operational environments.
+Historical telemetry can be replayed through the API using the included Python scripts.
 
----
+Prometheus collects prediction counts, anomaly counts, and processing duration. Grafana visualizes these metrics through an operations dashboard.
 
-## 8. REST API
+### Grafana Monitoring Dashboard
 
-SAT-GUARD exposes its anomaly detection functionality through a REST API developed using FastAPI.
+![SAT-GUARD Operations Dashboard](https://github.com/user-attachments/assets/1c2d0687-3bf1-45e1-a5dc-80e7c422ee00)
 
-### Available Endpoints
+## 4. Installation & Reproduction
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/health` | GET | Application health and model availability |
-| `/api/v1/model/info` | GET | Model metadata and expected features |
-| `/api/v1/predict` | POST | Classify a completed telemetry segment |
-| `/metrics` | GET | Prometheus-compatible application metrics |
+**Prerequisites:** Python, Docker, Docker Compose, and the ESA OPS-SAT dataset.
 
-### Prediction Response
+Clone the repository:
 
-Example response:
+```bash
+git clone https://github.com/samuelHenris/sat-guard.git
+cd sat-guard
 
-```json
-{
-  "channel": "CADC0872",
-  "model_version": "0.1.0",
-  "prediction": 1,
-  "classification": "anomalous",
-  "anomaly_probability": 0.998,
-  "measurement_count": 280
-}
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
 ```
 
-This example was produced using historical OPS-SAT telemetry segment 1.
+Download the [ESA OPS-SAT dataset](https://zenodo.org/records/15108715) and place `segments.csv` inside `data/raw/`.
 
-The API validates incoming measurements using Pydantic.
+Generate the features and trained model:
 
-Validation includes:
+```bash
+python run_features.py
+python save_model.py
+```
 
-- Supported telemetry channel
-- Valid timezone-aware timestamps
-- Strictly increasing measurement timestamps
-- Positive sampling intervals
-- Finite numerical measurements
-- Supported segment length
+Start the application:
 
-The returned anomaly score is derived from the Random Forest's predicted class probability. It is not calibrated as a real-world spacecraft fault probability.
+```bash
+docker volume create sat-guard-prometheus-data
+docker volume create sat-guard-grafana-data
+docker compose up -d --build
+```
 
----
+Access the services:
 
-## 9. Historical Telemetry Replay
+| Service | URL |
+|---|---|
+| FastAPI | http://localhost:8000/docs |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3000 |
 
-SAT-GUARD includes a Python-based historical telemetry replay utility.
-
-The replay engine retrieves completed telemetry segments, orders them chronologically, and submits them to the prediction API.
-
-This allows repeated inference requests to be demonstrated without requiring access to operational spacecraft.
-
-### Replay Features
-
-- Chronological ordering of historical segments
-- Configurable number of segments
-- Configurable delay between requests
-- Optional normal/anomalous label filtering
-- HTTP response validation
-- Request latency measurement
-- Prediction and ground-truth comparison
-
-### Example
+Replay historical telemetry:
 
 ```bash
 python scripts/replay_telemetry.py --limit 5 --delay 1
 ```
 
-Replay anomalous training segments:
+The raw dataset and trained model artifacts are excluded from version control and can be regenerated locally.
 
-```bash
-python scripts/replay_telemetry.py --limit 5 --delay 1 --label 1
-```
+## 5. Testing
 
-The replay utility uses historical training-partition examples for demonstrations.
-
-Replay results are not considered independent model evaluation results.
-
----
-
-## 10. Monitoring and Observability
-
-SAT-GUARD integrates Prometheus and Grafana to monitor anomaly detection activity and application performance.
-
-### Prometheus Metrics
-
-The FastAPI application exposes metrics through:
-
-```text
-GET /metrics
-```
-
-Custom metrics include:
-
-| Metric | Description |
-|---|---|
-| `sat_guard_predictions_total` | Total completed predictions |
-| `sat_guard_anomalies_total` | Total anomalous classifications |
-| `sat_guard_prediction_duration_seconds` | Feature extraction and prediction processing duration |
-
-Prometheus collects these metrics periodically through its configured scrape target.
-
-### Grafana Dashboard
-
-The SAT-GUARD Operations Dashboard contains four monitoring panels:
-
-1. Total Predictions
-2. Anomalies Detected
-3. Prediction Throughput
-4. Average Prediction Processing Latency
-
-The dashboard provides visibility into how the inference service behaves while processing historical telemetry.
-
-Prediction metrics are distinguished from the spacecraft's original sensor measurements.
-
-The dashboard is designed to monitor application behavior rather than diagnose the physical cause of spacecraft anomalies.
-
----
-
-## 11. Project Structure
-
-```text
-sat-guard/
-│
-├── data/
-│   ├── raw/
-│   └── processed/
-│
-├── src/
-│   └── sat_guard/
-│       ├── api/
-│       │   ├── main.py
-│       │   ├── schemas.py
-│       │   └── metrics.py
-│       ├── data/
-│       │   ├── loader.py
-│       │   ├── validation.py
-│       │   └── diagnostics.py
-│       ├── features/
-│       │   └── extraction.py
-│       └── models/
-│           ├── training.py
-│           └── persistence.py
-│
-├── scripts/
-│   ├── create_prediction_request.py
-│   └── replay_telemetry.py
-│
-├── tests/
-├── monitoring/
-│   ├── prometheus/
-│   └── grafana/
-│
-├── artifacts/
-├── reports/
-├── Dockerfile
-├── compose.yaml
-├── pyproject.toml
-└── README.md
-```
-
-Raw datasets, generated reports, and model artifacts are excluded from version control.
-
----
-
-## 12. Installation and Setup
-
-### Prerequisites
-
-- Python 3.14 or a compatible environment
-- Docker Engine
-- Docker Compose
-- Git
-- ESA OPS-SAT telemetry dataset
-- A trained SAT-GUARD model artifact
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/samuelHenris/sat-guard.git
-cd sat-guard
-```
-
-### Create a Python Virtual Environment
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-```
-
-### Install Dependencies
-
-```bash
-python -m pip install -e ".[dev]"
-```
-
-### Prepare the Dataset
-
-Download the ESA OPS-SAT telemetry dataset and place the original telemetry CSV at:
-
-```text
-data/raw/segments.csv
-```
-
-The application expects processed features at:
-
-```text
-data/processed/cadc0872_features.csv
-```
-
-Generate the processed features using the project's existing feature-extraction pipeline.
-
-### Prepare the Model
-
-The FastAPI service requires a trusted, locally generated model artifact at:
-
-```text
-artifacts/cadc0872_random_forest.joblib
-```
-
-The model is not included in the repository.
-
-After generating the processed feature dataset, it can be trained using:
-
-```python
-import pandas as pd
-
-from sat_guard.models.persistence import (
-    train_final_model,
-    save_model,
-)
-
-features = pd.read_csv(
-    "data/processed/cadc0872_features.csv"
-)
-
-artifact = train_final_model(features)
-
-save_model(
-    artifact,
-    "artifacts/cadc0872_random_forest.joblib",
-)
-```
-
-The model should be trained using the official training partition only.
-
-For reliable deserialization, use a compatible scikit-learn version. The evaluated model was trained using scikit-learn 1.9.1.
-
-Only load trusted Joblib artifacts.
-
-### Start the Application
-
-The Docker Compose configuration uses persistent named Docker volumes.
-
-Create the volumes if they do not already exist:
-
-```bash
-docker volume create sat-guard-prometheus-data
-docker volume create sat-guard-grafana-data
-```
-
-Build and start the services:
-
-```bash
-docker compose up -d --build
-```
-
-Verify:
-
-```bash
-docker compose ps
-```
-
-### Access the Services
-
-| Service | URL |
-|---|---|
-| FastAPI | http://127.0.0.1:8000 |
-| API documentation | http://127.0.0.1:8000/docs |
-| Prometheus | http://127.0.0.1:9090 |
-| Grafana | http://127.0.0.1:3000 |
-
-The services run locally and are not publicly exposed.
-
-The Grafana dashboard export is available in:
-
-```text
-monitoring/grafana/dashboards/
-```
-
-Depending on the Grafana version and dashboard schema, manual import or adjustments to provisioning may be required.
-
----
-
-## 13. Automated Testing
-
-SAT-GUARD uses pytest to verify the behavior of its major components.
-
-Tests cover:
-
-- Dataset validation
-- Telemetry segment summaries
-- Timestamp-gap detection
-- Statistical feature extraction
-- Temporal feature extraction
-- Model serialization consistency
-- FastAPI health and metadata endpoints
-- Successful predictions
-- Invalid telemetry requests
-- Unsupported channels
-- Historical replay ordering and filtering
-- HTTP error handling
-
-Run the test suite:
+SAT-GUARD uses pytest for automated testing of data validation, feature extraction, model persistence, API endpoints, and telemetry replay.
 
 ```bash
 python -m pytest -q
 ```
 
-Latest verified test result:
+**Latest verification: 21 tests passed.**
 
-```text
-21 passed
-```
+## 6. Limitations & Future Work
 
----
+SAT-GUARD is a ground-based engineering prototype, not a flight-qualified spacecraft monitoring system.
 
-## 14. Limitations
+Current limitations include:
 
-SAT-GUARD is an engineering prototype and has several limitations.
+- Anomaly classification is performed on completed telemetry segments.
+- The trained model currently supports only channel CADC0872.
+- Model probabilities are not calibrated spacecraft fault probabilities.
+- Generalization to other spacecraft and operational environments has not been established.
 
-**Single-channel model:** The current Random Forest supports only magnetometer channel CADC0872.
+Future work includes multi-channel anomaly detection, incremental inference, broader validation, and Kubernetes deployment.
 
-**Segment-level inference:** Predictions require completed telemetry segments. The system is not an instantaneous sample-level anomaly detector.
+## 7. Author
 
-**Limited evaluation scope:** The reported evaluation uses one official test partition containing 132 segments.
-
-**Model calibration:** Random Forest class probabilities are not calibrated as real-world spacecraft failure probabilities.
-
-**Historical replay:** The replay engine simulates the submission of previously recorded telemetry segments rather than receiving operational satellite data.
-
-**Operational validation:** The system has not been validated for flight use, real spacecraft operations, or mission-critical decision-making.
-
----
-
-## 15. Future Improvements
-
-Potential extensions include:
-
-- Expanding anomaly detection to additional OPS-SAT telemetry channels.
-- Comparing additional machine learning approaches.
-- Investigating incremental detection on partially observed segments.
-- Performing broader temporal and cross-channel robustness evaluations.
-- Improving model explainability and probability calibration.
-- Automating Grafana dashboard provisioning.
-- Adding container health checks and deployment integration tests.
-- Exploring deployment to a local Kubernetes cluster.
-
----
-
-## 16. Dataset Attribution
-
-This project uses historical telemetry from the European Space Agency's OPS-SAT anomaly detection dataset.
-
-The original dataset and its associated research remain the work of their respective authors.
-
-Dataset source:
-
-https://zenodo.org/records/15108715
-
-Users should consult the original dataset documentation for licensing, attribution requirements, and details of the telemetry annotations.
-
----
-<img width="2504" height="767" alt="Screenshot From 2026-11-08 00-22-05" src="https://github.com/user-attachments/assets/1c2d0687-3bf1-45e1-a5dc-80e7c422ee00" />
-
-## Author
-
-**Samuel Henry-Abiola**
-
+**Samuel Henry-Abiola**  
 MSc (Technology), Communications Engineering and Data Science  
 Aalto University / Instituto Superior Técnico
 
-BSc Software Engineering  
-West Ukrainian National University
+BSc Software Engineering — West Ukrainian National University
 
-GitHub: https://github.com/samuelHenris
+[GitHub](https://github.com/samuelHenris) | [LinkedIn](https://www.linkedin.com/in/samuelhenria/)
 
-LinkedIn: https://www.linkedin.com/in/samuelhenria/
-
----
-
-*SAT-GUARD is an independent engineering portfolio project developed using publicly available spacecraft telemetry.*
+*Independent engineering portfolio project using publicly available ESA spacecraft telemetry.*
